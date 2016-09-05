@@ -76,8 +76,10 @@ Now that you got some models it is important to create a connection to the datab
 package mongodm
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"time"
@@ -98,6 +100,7 @@ type (
 		DatabaseHost string
 		DatabaseName string
 		Locals       map[string]string
+		TLSConfig    *tls.Config
 	}
 
 	//The "Database" object which stores all connections
@@ -277,7 +280,18 @@ func (self *Connection) Open() (err error) {
 		}
 	}()
 
-	session, err := mgo.Dial(self.Config.DatabaseHost)
+	dialInfo, err := mgo.ParseURL(self.Config.DatabaseHost)
+	if err != nil {
+		return err
+	}
+
+	if self.Config.TLSConfig != nil {
+		dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
+			return tls.Dial("tcp", addr.String(), self.Config.TLSConfig)
+		}
+	}
+
+	session, err := mgo.DialWithInfo(dialInfo)
 
 	if err != nil {
 		return err
