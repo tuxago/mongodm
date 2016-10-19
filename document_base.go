@@ -312,15 +312,15 @@ func (self *DocumentBase) Update(content interface{}) (error, map[string]interfa
 	return nil, nil
 }
 
-// Calling this method will not remove the object from the database. Instead the deleted flag is set to true.
-// So you can use bson.M{"deleted":false} in your query to filter those documents.
+// Delete will delete the document from the collection, no more "deleted" flag
 func (self *DocumentBase) Delete() error {
 
 	if self.Id.Valid() {
+		session := self.connection.session.Clone()
+		defer session.Close()
 
-		self.SetDeleted(true)
-
-		return self.Save()
+		collection := session.DB(self.connection.Config.DatabaseName).C(self.collection.Name)
+		return collection.RemoveId(self.Id)
 	}
 
 	return errors.New("Invalid object id")
